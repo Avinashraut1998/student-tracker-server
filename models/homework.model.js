@@ -3,10 +3,18 @@ const mongoose = require("mongoose");
 const homeworkSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
-    content: { type: String, required: true },
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher" },
-    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
-    approved: { type: Boolean, default: false },
+    description: { type: String, required: true },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Teacher",
+    },
+    approvedByAdmin: { type: Boolean, default: false },
+    answers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "HomeworkAnswer",
+      },
+    ],
   },
   {
     timestamps: true,

@@ -1,6 +1,8 @@
 const express = require("express");
 const Admin = require("../models/admin.model");
+const Homework = require("../models/homework.model");
 const jwt = require("jsonwebtoken");
+const { authenticateJwt } = require("../authenticate");
 const router = express.Router();
 
 router.post("/signup", async (req, res) => {
@@ -38,5 +40,45 @@ router.post("/login", async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 });
+
+router.get("/homeworks", authenticateJwt, async (req, res) => {
+  try {
+    // Fetch all homeworks
+    const homeworks = await Homework.find().populate("createdBy", "username");
+
+    res.status(200).json({ homeworks });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+router.put(
+  "/approve-homework/:homeworkId",
+  authenticateJwt,
+  async (req, res) => {
+    try {
+      const { homeworkId } = req.params;
+
+      // Check if the homework exists
+      const homework = await Homework.findById(homeworkId);
+      if (!homework) {
+        return res.status(404).json({ error: "Homework not found" });
+      }
+
+      // Approve the homework
+      homework.approvedByAdmin = true;
+      await homework.save();
+
+      res.status(200).json({
+        message: "Homework approved successfully",
+        homework,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+);
 
 module.exports = router;

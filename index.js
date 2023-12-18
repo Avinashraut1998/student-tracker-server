@@ -1,9 +1,11 @@
 require("dotenv").config();
 const express = require("express");
 const connectDB = require("./db");
+const cors = require("cors");
 const app = express();
 
 app.use(express.json());
+app.use(cors());
 
 const teacherRoutes = require("./routes/teacher-routes");
 const adminRoutes = require("./routes/admin-routes");

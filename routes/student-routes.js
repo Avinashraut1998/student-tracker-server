@@ -2,6 +2,10 @@ const express = require("express");
 const Student = require("../models/student.model");
 const jwt = require("jsonwebtoken");
 const router = express.Router();
+const { authenticateJwt } = require("../authenticate");
+const Homework = require("../models/homework.model");
+const Teacher = require("../models/teacher.model");
+const HomeworkAnswer = require("../models/homeworkAnswer.model");
 
 router.post("/signup", async (req, res) => {
   const { username, email, password } = req.body;
@@ -25,10 +29,12 @@ router.post("/login", async (req, res) => {
   console.log(req.body);
   try {
     const existingStudent = await Student.findOne({ email, password });
+
     if (existingStudent) {
-      username = existingStudent.username;
+      const { username, _id } = existingStudent;
+
       const token = jwt.sign(
-        { username, role: "Student" },
+        { username, studentId: _id, role: "Student" },
         process.env.SECRET,
         {
           expiresIn: "1h",
@@ -42,5 +48,74 @@ router.post("/login", async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 });
+
+router.get("/approved-homeworks", authenticateJwt, async (req, res) => {
+  try {
+    // Fetch all approved homeworks
+    const approvedHomeworks = await Homework.find({
+      approvedByAdmin: true,
+    }).populate("createdBy", "username");
+
+    res.status(200).json({ approvedHomeworks });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+router.post(
+  "/answer-homework/:homeworkId",
+  authenticateJwt,
+  async (req, res) => {
+    try {
+      const { homeworkId } = req.params;
+      const { answerText } = req.body;
+
+      // Check if the homework exists and is approved
+      const homework = await Homework.findOne({
+        _id: homeworkId,
+        approvedByAdmin: true,
+      });
+      if (!homework) {
+        return res
+          .status(404)
+          .json({ error: "Homework not found or not approved" });
+      }
+
+      // Create a new homework answer
+      const studentId = req.user.studentId;
+      const newAnswer = new HomeworkAnswer({
+        answerText,
+        createdBy: studentId,
+        homework: homework._id,
+      });
+
+      // Save the answer
+      await newAnswer.save();
+
+      // Add the answer to the homework's answers array
+      homework.answers.push(newAnswer._id);
+      await homework.save();
+
+      // Find the teacher who created the homework
+      const teacher = await Teacher.findById(homework.createdBy);
+      if (!teacher) {
+        return res.status(404).json({ error: "Teacher not found" });
+      }
+
+      // Add the answer to the teacher's homeworks array (for reference)
+      teacher.homeworks.push(homework._id);
+      await teacher.save();
+
+      res.status(201).json({
+        message: "Homework answer submitted successfully",
+        answer: newAnswer,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+);
 
 module.exports = router;
