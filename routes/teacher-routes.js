@@ -28,7 +28,7 @@ router.post("/login", async (req, res) => {
 
   try {
     const existingTeacher = await Teacher.findOne({ email, password });
-    console.log(existingTeacher);
+
     if (existingTeacher) {
       const { _id, username } = existingTeacher;
       const token = jwt.sign(
@@ -180,12 +180,21 @@ router.get("/fetch-answers/:teacherId", authenticateJwt, async (req, res) => {
     for (const homework of homeworks) {
       const answers = await HomeworkAnswer.find({ homework: homework._id })
         .populate("createdBy", "username")
-        .select("answerText status");
+        .populate({
+          path: "createdBy",
+          select: "username", // Specify only the fields you need
+        })
+        .select("answerText _id createdBy status"); // Include the 'status' field
 
-      answersList.push({
+      const formattedAnswers = answers.map((answer) => ({
         homeworkTitle: homework.title,
-        answers: answers,
-      });
+        answerText: answer.answerText,
+        studentName: answer.createdBy.username,
+        answerId: answer._id,
+        status: answer.status,
+      }));
+
+      answersList.push(...formattedAnswers);
     }
 
     res.status(200).json({ answersList });
@@ -218,6 +227,7 @@ router.get("/fetch-answer/:answerId", authenticateJwt, async (req, res) => {
       studentName: answer.createdBy.username,
       answerText: answer.answerText,
       homeworkTitle: homework.title,
+      status: answer.status,
     });
   } catch (error) {
     console.error(error);

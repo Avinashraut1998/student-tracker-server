@@ -41,12 +41,43 @@ router.post("/login", async (req, res) => {
   }
 });
 
+router.get("/me", authenticateJwt, async (req, res) => {
+  try {
+    // Fetch the user using the common User model
+    const user = await Admin.findOne({ username: req.user.username });
+
+    if (!user) {
+      res.status(403).json({ msg: "User doesn't exist" });
+      return;
+    }
+
+    res.json({
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      // Include other user details you want to send in the response
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 router.get("/homeworks", authenticateJwt, async (req, res) => {
   try {
-    // Fetch all homeworks
-    const homeworks = await Homework.find().populate("createdBy", "username");
+    // Fetch all homeworks with the specified fields
+    const homeworks = await Homework.find()
+      .populate("createdBy", "username")
+      .select("title approvedByAdmin _id createdBy");
 
-    res.status(200).json({ homeworks });
+    const formattedHomeworks = homeworks.map((homework) => ({
+      homeworkId: homework._id,
+      title: homework.title,
+      approvedStatus: homework.approvedByAdmin,
+      createdBy: homework.createdBy.username,
+    }));
+
+    res.status(200).json({ homeworks: formattedHomeworks });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal Server Error" });
