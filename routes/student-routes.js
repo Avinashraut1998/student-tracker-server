@@ -139,6 +139,7 @@ router.post(
         _id: homeworkId,
         approvedByAdmin: true,
       });
+
       if (!homework) {
         return res
           .status(404)
@@ -170,9 +171,15 @@ router.post(
       teacher.homeworks.push(homework._id);
       await teacher.save();
 
+      // Fetch the updated homework with the title
+      const updatedHomework = await Homework.findById(homeworkId).populate(
+        "createdBy",
+        "username"
+      );
+
       res.status(201).json({
         message: "Homework answer submitted successfully",
-        answer: newAnswer,
+        singleHomework: updatedHomework,
       });
     } catch (error) {
       console.error(error);
