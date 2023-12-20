@@ -49,19 +49,82 @@ router.post("/login", async (req, res) => {
   }
 });
 
-router.get("/approved-homeworks", authenticateJwt, async (req, res) => {
+router.get("/me", authenticateJwt, async (req, res) => {
   try {
-    // Fetch all approved homeworks
-    const approvedHomeworks = await Homework.find({
-      approvedByAdmin: true,
-    }).populate("createdBy", "username");
+    // Fetch the user using the common User model
+    const user = await Student.findOne({ username: req.user.username });
 
-    res.status(200).json({ approvedHomeworks });
+    if (!user) {
+      res.status(403).json({ msg: "User doesn't exist" });
+      return;
+    }
+
+    res.json({
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+router.get("/approved-homeworks", authenticateJwt, async (req, res) => {
+  try {
+    // Fetch all approved homeworks
+    const approvedHomeworks = await Homework.find({
+      approvedByAdmin: true,
+    }).populate("createdBy", "username _id"); // Populate with both username and _id
+
+    // Extract the required information and create a new array
+    const formattedHomeworks = approvedHomeworks.map((homework) => ({
+      teacherName: homework.createdBy.username,
+      homeworkId: homework._id,
+      title: homework.title,
+    }));
+
+    res.status(200).json({ approvedHomeworks: formattedHomeworks });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+router.get(
+  "/single-homework/:homeworkId",
+  authenticateJwt,
+  async (req, res) => {
+    try {
+      const { homeworkId } = req.params;
+
+      // Fetch the single approved homework
+      const singleHomework = await Homework.findOne({
+        _id: homeworkId,
+        approvedByAdmin: true,
+      }).populate("createdBy", "username _id"); // Populate with both username and _id
+
+      if (!singleHomework) {
+        return res
+          .status(404)
+          .json({ error: "Homework not found or not approved" });
+      }
+
+      res.status(200).json({
+        singleHomework: {
+          teacherId: singleHomework.createdBy._id,
+          teacherName: singleHomework.createdBy.username,
+          homeworkId: singleHomework._id,
+          title: singleHomework.title,
+          // Add any other required fields here
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+);
 
 router.post(
   "/answer-homework/:homeworkId",

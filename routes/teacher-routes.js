@@ -49,7 +49,6 @@ router.post("/login", async (req, res) => {
 
 router.get("/me", authenticateJwt, async (req, res) => {
   try {
-    // Fetch the user using the common User model
     const user = await Teacher.findOne({ username: req.user.username });
 
     if (!user) {
@@ -61,7 +60,6 @@ router.get("/me", authenticateJwt, async (req, res) => {
       _id: user._id,
       username: user.username,
       email: user.email,
-      // Include other user details you want to send in the response
     });
   } catch (error) {
     console.error(error);

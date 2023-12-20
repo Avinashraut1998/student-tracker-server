@@ -90,6 +90,7 @@ router.put(
   async (req, res) => {
     try {
       const { homeworkId } = req.params;
+      const { approvedStatus } = req.body;
 
       // Check if the homework exists
       const homework = await Homework.findById(homeworkId);
@@ -97,12 +98,17 @@ router.put(
         return res.status(404).json({ error: "Homework not found" });
       }
 
-      // Approve the homework
-      homework.approvedByAdmin = true;
+      // Set the approved status based on the request body
+      if (approvedStatus !== undefined) {
+        homework.approvedByAdmin = approvedStatus;
+      } else {
+        return res.status(400).json({ error: "Invalid request body" });
+      }
+
       await homework.save();
 
       res.status(200).json({
-        message: "Homework approved successfully",
+        message: "Homework approval status updated successfully",
         homework,
       });
     } catch (error) {
